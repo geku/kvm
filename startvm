@@ -264,6 +264,28 @@ configureNetworks () {
   done
 }
 
+generateCloudDrive()
+{
+  # get metadata and create nocloud drive for cloud-init
+
+  # Create files
+  echo -e "instance-id: $HOSTNAME\nlocal-hostname: $HOSTNAME" > './meta-data'
+  #echo "$USER_DATA" > './user-data'
+
+  cp /etc/user-data ./user-data
+
+  iso="./config.iso"
+  genisoimage -o $iso -V cidata -r -J ./user-data ./meta-data
+  #genisoimage -o $iso -V cidata -r -J ./user-data
+  if [ $? -ne 0 ]
+  then
+    echo "Failed to create cloud-drive ISO image for cloud-init"
+    exit 1
+  fi
+  echo $iso
+}
+
+
 # MAIN
 
 #enable KVM support onl if the host supports it
@@ -273,6 +295,13 @@ if [[ $(grep -e vmx -e svm /proc/cpuinfo) ]]; then
 else
   log "INFO" "KVM acceleration disabled"
   KVM_OPTS="$KVM_OPTS -machine usb=off "
+fi
+
+# Attach cloud-drive if available
+ISO=`generateCloudDrive`
+if [[ $ISO ]]
+then
+  KVM_BLK_OPTS=$KVM_BLK_OPTS" -cdrom $ISO"
 fi
 
 # Debugging mode
